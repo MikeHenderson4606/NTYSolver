@@ -10,78 +10,65 @@ from datetime import date
 
 # Import the client
 import sys
-sys.path.insert(1, '../Client')
-import client
+sys.path.append('../Client')
+import Client.client as client # type: ignore
 
-# Driver path // Switch for mac/windows
-#driver_path = "../chromedriver-mac-x64/chromedriver"
-driver_path = "../chromedriver-win64/chromedriver.exe"
+def Connections(driver):
+    driver.get('https://www.nytimes.com/games/connections')
 
-# Enable performance logging
-caps = DesiredCapabilities.CHROME
-caps['goog:loggingPrefs'] = {'performance': 'ALL'}
+    # Format today's date to get the json file
+    today = str(date.today())
+    url = "https://www.nytimes.com/svc/connections/v2/" + today + ".json"
 
-# Set up Service
-service = Service(executable_path=driver_path)
+    # Get request to the url to get the json values for the current connections
+    categories = client.getConnectionsData(url)
 
-# Options
-options = webdriver.ChromeOptions()
-options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    # Wait until the page has loaded to click play
+    playButton = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-testid="moment-btn-play"]'))
+    )
+    playButton.click()
+    print("Play button clicked")
 
-# Create chrome instance
-driver = webdriver.Chrome(service=service, options=options)
+    # Now wait until the x can be clicked for the 
+    xButton = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, 'i[class="pz-icon pz-icon-close"]'))
+    )
+    xButton.click()
+    print("X Button clicked")
 
-driver.get('https://www.nytimes.com/games/connections')
+    # Wait for everything to render appropriately
 
-# Format today's date to get the json file
-today = str(date.today())
-url = "https://www.nytimes.com/svc/connections/v2/" + today + ".json"
 
-# Get request to the url to get the json values for the current connections
-categories = client.getConnectionsData(url)
+    # Scroll into view
+    scrollElement = driver.find_element(By.CSS_SELECTOR, 'i[class="ToolbarButton-module_icon__BBqYZ ToolbarButton-module_settingsIcon__B7Cb5"]')
+    driver.execute_script("arguments[0].scrollIntoView(true);", scrollElement)
 
-# Wait until the page has loaded to click play
-playButton = WebDriverWait(driver, 10).until(
-    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-testid="moment-btn-play"]'))
-)
-playButton.click()
-print("Play button clicked")
+    # Let everything load
+    time.sleep(1)
 
-# Now wait until the x can be clicked for the 
-xButton = WebDriverWait(driver, 10).until(
-    EC.element_to_be_clickable((By.CSS_SELECTOR, 'i[class="pz-icon pz-icon-close"]'))
-)
-xButton.click()
-print("X Button clicked")
+    # Loop through the categories and select each word accordingly
+    for category in categories:
+        for word in category:
+            selectorString = 'label[data-flip-id="'+ word + '"]'
+            try:
+                currWordCheckbox = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, selectorString))
+                )
 
-# Wait for everything to render appropriately
-time.sleep(1)
+                if not currWordCheckbox.is_selected():
+                    currWordCheckbox.click()
+                    print("Checked " + word)
+                else:
+                    print("Already checked " + word)
+            except Exception as e:
+                print("Error:", e)
+            
+        # Then click the submit button
+        submitButton = driver.find_element(By.CSS_SELECTOR, 'button[data-testid="submit-btn"]')
+        submitButton.click()
+        # Wait until the animation is over
+        time.sleep(2)
 
-# Loop through the categories and select each word accordingly
-for category in categories:
-    for word in category:
-        selectorString = 'label[data-flip-id="'+ word + '"]'
-        try:
-            currWordCheckbox = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, selectorString))
-            )
-
-            if not currWordCheckbox.is_selected():
-                currWordCheckbox.click()
-                print("Checked " + word)
-            else:
-                print("Already checked " + word)
-        except Exception as e:
-            print("Error:", e)
-        
-    # Then click the submit button
-    submitButton = driver.find_element(By.CSS_SELECTOR, 'button[data-testid="submit-btn"]')
-    submitButton.click()
-    # Wait until the animation is over
-    time.sleep(2)
-
-# Sleep to see what's going on
-time.sleep(20)
-
-# Quit the driver
-driver.quit()
+    # Sleep to see what's going on
+    time.sleep(5)

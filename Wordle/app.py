@@ -10,65 +10,53 @@ from datetime import date
 
 # Import the client
 import sys
-sys.path.insert(1, '../Client')
-import client
+sys.path.append('../Client')
+import Client.client as client # type: ignore
 
-# Driver path // Switch for mac/windows
-#driver_path = "../chromedriver-mac-x64/chromedriver"
-driver_path = "../chromedriver-win64/chromedriver.exe"
+def Wordle(driver):
+    driver.get('https://www.nytimes.com/games/wordle')
 
-# Enable performance logging
-caps = DesiredCapabilities.CHROME
-caps['goog:loggingPrefs'] = {'performance': 'ALL'}
+    # Format today's date to get the json file
+    today = str(date.today())
+    url = "https://www.nytimes.com/svc/wordle/v2/" + today + ".json"
 
-# Set up Service
-service = Service(executable_path=driver_path)
+    # Get request to the url to get the json values for the current connections
+    word = client.getWordleData(url)
 
-# Options
-options = webdriver.ChromeOptions()
-options.add_experimental_option('excludeSwitches', ['enable-logging'])
-
-# Create chrome instance
-driver = webdriver.Chrome(service=service, options=options)
-
-driver.get('https://www.nytimes.com/games/wordle')
-
-# Format today's date to get the json file
-today = str(date.today())
-url = "https://www.nytimes.com/svc/wordle/v2/" + today + ".json"
-
-# Get request to the url to get the json values for the current connections
-word = client.getWordleData(url)
-
-# Wait until the page has loaded to click play
-playButton = WebDriverWait(driver, 10).until(
-    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-testid="Play"]'))
-)
-playButton.click()
-print("Play button clicked")
-
-# Now wait until the x can be clicked for the 
-xButton = WebDriverWait(driver, 10).until(
-    EC.element_to_be_clickable((By.CSS_SELECTOR, 'svg[data-testid="icon-close"]'))
-)
-xButton.click()
-print("X Button clicked")
-
-# Wait for everything to render appropriately
-time.sleep(1)
-
-# Insert the solution to the puzzle
-for char in word:
-    selectorString = 'button[data-key="' + char + '"]'
-    correctChar = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.CSS_SELECTOR, selectorString))
+    # Wait until the page has loaded to click play
+    playButton = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-testid="Play"]'))
     )
-    correctChar.click()
+    playButton.click()
+    print("Play button clicked")
 
-# Click the submit button
-submitButton = WebDriverWait(driver, 10).until(
-    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="enter"]'))
-)
-submitButton.click()
+    # Now wait until the x can be clicked for the 
+    xButton = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, 'svg[data-testid="icon-close"]'))
+    )
+    xButton.click()
+    print("X Button clicked")
 
-time.sleep(20)
+    # Scroll into view
+    scrollElement = driver.find_element(By.CSS_SELECTOR, 'button[id="settings-button"]')
+    driver.execute_script("arguments[0].scrollIntoView(true);", scrollElement)
+
+    # Wait for everything to render appropriately
+    time.sleep(1)
+
+    # Insert the solution to the puzzle
+    for char in word:
+        selectorString = 'button[data-key="' + char + '"]'
+        correctChar = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, selectorString))
+        )
+        correctChar.click()
+
+    # Click the submit button
+    submitButton = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="enter"]'))
+    )
+    submitButton.click()
+
+    # Let it sink in
+    time.sleep(5)
